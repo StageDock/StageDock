@@ -1,0 +1,51 @@
+name: Release APK
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches versionName
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if [ "v$VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match versionName $VERSION in app/build.gradle.kts"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > StageDock.jks
+
+      - name: Build signed release
+        env:
+          STAGEDOCK_KEYSTORE: StageDock.jks
+          STAGEDOCK_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          STAGEDOCK_KEY_ALIAS: StageDock
+          STAGEDOCK_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Check APK is signed with the StageDock key
+        run: keytool -printcert -jarfile app/build/outputs/apk/release/*-release.apk | grep -q "CN=StageDock"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*-release.apk

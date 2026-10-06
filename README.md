@@ -79,12 +79,3 @@ The response is expected as `{ data, count, total, page, pageCount }`. On first 
 
 Use that to confirm the field names, especially where the filename lives under `files[].file`.
 
-## Things to confirm before release
-
-- **Search on `user.username`.** If the API rejects it with a 400, drop that `$or` branch in `ApiConfig.filter`.
-- **Stage folder.** `CustomStages` follows the `CustomSongs` convention. Check an existing install on a headset.
-- **file_id source.** The app tries `files[].file_id`, then `files[].file.id`, then `files[].id`. Check the logcat raw JSON to see which one is right and drop the others.
-- **Download format.** The installer handles both a raw `.stagedroid` and a zip.
-- **Game package.** `com.kluge.SynthRiders` is used for the Play button and the `<queries>` entry.
-
-Not affiliated with Kluge Interactive or synthriderz.com.

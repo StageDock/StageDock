@@ -1,81 +1,81 @@
 # StageDock
 
-Native Android (Kotlin, Jetpack Compose) 2D-panel app for Meta Quest. Browses custom stages from the synthriderz.com community index and installs them on-headset into Synth Riders' user content folder.
+Browse and install custom **Synth Riders** stages straight from your Meta Quest. No PC, no cables.
 
-## Build and sideload
+StageDock pulls the stage catalogue from [synthriderz.com](https://synthriderz.com), downloads the Quest version of the stage you pick, and puts it where Synth Riders looks for custom stages.
 
-1. Open the `StageDock` folder in Android Studio (Koala or newer, JDK 17). It uses the bundled Gradle 8.9 wrapper.
-2. Sync, then build the debug APK (or `./gradlew assembleDebug`).
-3. With the headset in developer mode: `adb install -r app/build/outputs/apk/debug/app-debug.apk`
-4. On the headset: Library > Unknown Sources > StageDock.
+## Features
 
-## Release builds
+- Browse every custom stage with cover art, author and download count
+- Search by stage name or author
+- Sort by Top, Newest or Most downloaded
+- One-tap install, with a progress bar
+- See and remove installed stages from the Installed tab
+- Launch Synth Riders from the app when you're done
+- Stages without a Quest version are clearly marked **PC only**
 
-### 1. Create the StageDock signing key (once)
+## Requirements
 
-    keytool -genkeypair -v -keystore StageDock.jks -alias StageDock -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=StageDock, OU=StageDock, O=StageDock, L=, ST=, C="
+- Meta Quest 2, Quest Pro, Quest 3 or Quest 3S
+- Synth Riders installed on the headset
+- An internet connection
 
-Back up `StageDock.jks` and its passwords. Every update must be signed with this same key or it won't install over existing copies. The key file and `keystore.properties` are git-ignored.
+## Install
 
-### 2. Build
+### SideQuest
 
-Copy `keystore.properties.example` to `keystore.properties` and fill in the passwords, then:
+1. Set up [SideQuest](https://sidequestvr.com/setup-howto) and put your headset in developer mode.
+2. Find **StageDock** on SideQuest and install it to your headset.
 
-    gradlew assembleRelease
+### Manual
 
-The signed APK is at `app/build/outputs/apk/release/StageDock-<version>-release.apk`. Verify the signer with:
+1. Download the latest `StageDock-*-release.apk` from [Releases](https://github.com/StageDock/StageDock/releases).
+2. Install it with SideQuest's "Install APK" button, or with `adb install StageDock-x.x.x-release.apk`.
 
-    keytool -printcert -jarfile app/build/outputs/apk/release/StageDock-0.1.0-release.apk
+## First launch
 
-### 3. Releasing through GitHub
+1. On your headset, open **Library**, switch the filter to **Unknown Sources**, and start **StageDock**.
+2. Tap **Grant access**, then turn on **Allow access to manage all files** for StageDock and go back to the app.
 
-The repo lives at `github.com/StageDock/StageDock`. Publishing a GitHub release runs `.github/workflows/release.yml`, which builds, signs and attaches the APK to that release.
+StageDock needs this permission to save stages into the `SynthRidersUC` folder that Synth Riders reads from. It only writes to `SynthRidersUC/CustomStages`.
 
-Repository secrets (Settings > Secrets and variables > Actions):
+If the settings screen doesn't open on your headset, grant the permission from a PC instead:
 
-| Secret | Value |
-| --- | --- |
-| `KEYSTORE_BASE64` | PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("StageDock.jks")) \| Set-Clipboard` |
-| `KEYSTORE_PASSWORD` | the keystore password |
-| `KEY_PASSWORD` | the key password (same as above unless you set a different one) |
+```
+adb shell appops set --uid com.stagedock.app MANAGE_EXTERNAL_STORAGE allow
+```
 
-To release, bump `versionCode` (+1) and `versionName` in `app/build.gradle.kts` and commit. Then on GitHub go to Releases > Draft a new release, create a tag matching the version (e.g. `v0.1.0`) and publish. The APK is attached a few minutes later.
+## Using StageDock
 
-The workflow fails if the tag doesn't match `versionName`, and checks the APK is signed by `CN=StageDock`.
+1. Browse or search for a stage and tap **Install**.
+2. When you're done, tap **Play**, or fully close and reopen Synth Riders.
+3. Pick your new stage from the stage selection in Synth Riders.
 
-## Storage access
+To remove a stage, open the **Installed** tab and tap the bin icon next to it.
 
-- Target folder: `/sdcard/SynthRidersUC/CustomStages`
-- Needs `MANAGE_EXTERNAL_STORAGE` (All files access). Use the in-app Grant button, or:
-  `adb shell appops set --uid com.stagedock.app MANAGE_EXTERNAL_STORAGE allow`
-- Quest needs the `.stagedroid` build of a stage, not the PC `.stage`. Stages without a `.stagedroid` file show as PC only.
-- Downloads land in the app cache, then are written as `<name>.stagedroid.part` and renamed, so the game never sees half-written files.
-- Zip downloads are unpacked; only `.stagedroid` entries are kept and names are sanitised.
-- Restart Synth Riders after installing so it rescans custom content.
+## Troubleshooting
 
-## Project layout
+**Install button is greyed out.** All files access hasn't been granted yet. See [First launch](#first-launch).
 
-| File | Purpose |
-| --- | --- |
-| `data/StageApi.kt` | synthriderz.com client. All endpoint paths and JSON field names live in `ApiConfig`. |
-| `install/StageInstaller.kt` | Download, unzip, atomic write, remove, list installed. |
-| `install/InstallRegistry.kt` | Persists which files each stage ID installed, so status survives restarts. |
-| `MainViewModel.kt` | Paging, search debounce, install state. |
-| `ui/StageScreen.kt` | Browse grid, Installed tab, access banner. |
+**A stage says "PC only".** The author hasn't uploaded a Quest (`.stagedroid`) version of that stage, so it can't run on Quest.
 
-## API
+**Installed stage doesn't show up in Synth Riders.** Close Synth Riders completely and start it again. It only scans for new stages on launch.
 
-StageDock talks to `https://synthriderz.com/api/models/stages`, a NestJS CRUD endpoint:
+**Install failed.** Check the headset is online and try again. If it keeps failing, open an [issue](https://github.com/StageDock/StageDock/issues) with the stage name and the error message.
 
-- `select=id,name,description,user.id,user.username,download_url,cover_url,cover_version,published_at,download_count,...`
-- `join[]=files&join[]=files.file` to find the `.stagedroid` file and its ID
-- Downloads use `/api/models/stages/{id}/download?file_id={fileId}`. Without `file_id` the server returns 500.
-- `limit=24&page=N&sort=score,DESC` (also `published_at,DESC` and `download_count,DESC` from the sort chips)
-- `s={"$and":[{"$or":[{"name":{"$contL":"q"}},{"user.username":{"$contL":"q"}}]}]}` for case-insensitive search
+## Where files go
 
-The response is expected as `{ data, count, total, page, pageCount }`. On first load the app logs the first item's keys and raw JSON under the `StageDock` tag:
+Stages are saved to `/sdcard/SynthRidersUC/CustomStages/` as `.stagedroid` files. You can also manage them there with SideQuest's file manager.
 
-    adb logcat -s StageDock
+## Building from source
 
-Use that to confirm the field names, especially where the filename lives under `files[].file`.
+See [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## Credits
+
+- Stage catalogue and downloads from [synthriderz.com](https://synthriderz.com). Thanks to the stage creators who share their work there.
+- Synth Riders is made by Kluge Interactive.
+
+## Disclaimer
+
+StageDock is an unofficial community tool. It is not affiliated with or endorsed by Kluge Interactive or synthriderz.com. Use at your own risk.

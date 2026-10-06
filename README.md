@@ -25,7 +25,7 @@ StageDock pulls the stage catalogue from [synthriderz.com](https://synthriderz.c
 ### SideQuest
 
 1. Set up [SideQuest](https://sidequestvr.com/setup-howto) and put your headset in developer mode.
-2. Find **StageDock** on SideQuest and install it to your headset.
+2. Find [StageDock](https://sidequestvr.com/app/62957/stagedock) on SideQuest and install it to your headset.
 
 ### Manual
 

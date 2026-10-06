@@ -42,7 +42,10 @@ jobs:
           ./gradlew assembleRelease
 
       - name: Check APK is signed with the StageDock key
-        run: keytool -printcert -jarfile app/build/outputs/apk/release/*-release.apk | grep -q "CN=StageDock"
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/*-release.apk | tee signer.txt
+          grep -q "CN=StageDock" signer.txt
 
       - uses: softprops/action-gh-release@v2
         with:
